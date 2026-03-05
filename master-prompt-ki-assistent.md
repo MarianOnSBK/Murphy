@@ -34,7 +34,7 @@ Ich baue einen persönlichen Desktop-Assistenten mit folgenden Kernfähigkeiten:
 
 | Eigenschaft | Wert |
 |---|---|
-| Betriebssystem | Windows |
+| Betriebssystem | Windows 10/11 |
 | Hardware | CPU only (keine dedizierte GPU), 100 GB RAM |
 | KI-Modell Backend | Ollama (lokal) |
 | Empfohlenes Modell | Qwen2.5-32B-Instruct (oder Mistral-Nemo, je nach Verfügbarkeit) |
@@ -42,6 +42,19 @@ Ich baue einen persönlichen Desktop-Assistenten mit folgenden Kernfähigkeiten:
 | Programmiersprache | TypeScript (durchgehend) |
 | Mein Level | Erfahrener Entwickler |
 | Zeitrahmen | Funktionierender Prototyp in ca. 4 Wochen |
+
+## Voraussetzungen (müssen vor dem Start installiert sein)
+
+| Software | Mindestversion | Installationsquelle |
+|---|---|---|
+| Node.js | 20 LTS | https://nodejs.org |
+| npm | 10+ | (kommt mit Node.js) |
+| Python | 3.11+ | https://python.org |
+| Git | 2.40+ | https://git-scm.com |
+| Ollama | aktuell | https://ollama.com |
+| Visual Studio Build Tools | 2022 | Für native Node-Module (SQLite) |
+
+**Hinweis:** Visual Studio Build Tools werden für das Kompilieren nativer Node-Module (z.B. `better-sqlite3`) auf Windows benötigt. Alternativ: `npm install --global windows-build-tools` (als Administrator).
 
 ---
 
@@ -205,7 +218,8 @@ jarvis/
 │   ├── conversations.sqlite        # Chatverlauf
 │   └── workflows/                  # Gelernte Workflow-JSONs
 └── scripts/
-    └── setup.sh                    # Installationsskript (Ollama, Python, Browser Use etc.)
+    ├── setup.ps1                   # PowerShell-Installationsskript (Ollama, Python, Browser Use etc.)
+    └── setup-python-env.ps1        # Python-Umgebung für Browser Use einrichten
 ```
 
 ---
@@ -217,10 +231,12 @@ jarvis/
   "mcpServers": {
     "browser-use": {
       "command": "python",
-      "args": ["-m", "browser_use.mcp_server"],
+      "args": ["-m", "mcp_server"],
+      "cwd": "C:\\Users\\DEIN_USERNAME\\browser-use",
       "env": {
         "OLLAMA_BASE_URL": "http://localhost:11434",
-        "MODEL": "qwen2.5:32b-instruct"
+        "MODEL": "qwen2.5:32b-instruct",
+        "PYTHONPATH": "C:\\Users\\DEIN_USERNAME\\browser-use"
       },
       "enabled": true
     },
@@ -231,12 +247,40 @@ jarvis/
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\DEIN_USERNAME\\Documents"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\\\Users\\\\DEIN_USERNAME\\\\Documents"
+      ],
       "enabled": false
     }
   }
 }
 ```
+
+**Hinweis:** Pfade müssen in der JSON-Datei mit doppeltem Backslash (`\\`) geschrieben werden. Ersetze `DEIN_USERNAME` durch deinen Windows-Benutzernamen.
+
+---
+
+## Sicherheitshinweise
+
+1. **Credentials nicht im Klartext speichern:** Login-Daten (z.B. für MS-365) werden über den Windows Credential Manager gespeichert — niemals in `.env`-Dateien oder in der SQLite-Datenbank im Klartext.
+2. **Workflow-Dateien können sensible Daten enthalten:** Gespeicherte Workflows (JSON) können eingetippte Passwörter oder Formulardaten enthalten. Der Assistent soll vor dem Speichern warnen und ggf. Passwortfelder maskieren.
+3. **Human-in-the-Loop bei destruktiven Aktionen:** Vor dem Senden von E-Mails, Aufgeben von Bestellungen oder Löschen von Dateien muss der Nutzer explizit bestätigen.
+4. **Ollama läuft nur lokal:** Port 11434 sollte nicht nach außen freigegeben werden (Firewall-Regel empfohlen).
+5. **Browser-Session-Isolation:** Browser Use soll in einem separaten Chromium-Profil laufen, das vom persönlichen Profil getrennt ist, um Cookie-Lecks zu vermeiden.
+
+---
+
+## Teststrategie
+
+| Ebene | Werkzeug | Was wird getestet |
+|---|---|---|
+| Unit-Tests | Vitest | Orchestrator-Logik, Workflow-Store, Ollama-Client |
+| Integrationstests | Playwright | Electron-UI, Chat-Ablauf End-to-End |
+| Manuelle Tests | — | Browser-Automatisierung, MCP-Server-Verbindungen |
+
+**Wichtig:** Schreibe von Anfang an Tests für den Orchestrator und den Workflow-Store, da diese die kritischsten Komponenten sind. Für UI-Komponenten reicht zunächst manuelles Testen.
 
 ---
 
@@ -251,6 +295,20 @@ jarvis/
 4. **Lokales LLM (Ollama):** Alle Daten bleiben auf dem Rechner. Keine API-Kosten, keine Abhängigkeit von Cloud-Diensten. Trade-off: Langsamere Antwortzeiten (2-5 Sekunden auf CPU).
 
 5. **Human-in-the-Loop:** Der Assistent fragt nach bei unerwarteten Situationen, Fehlern während des Replays, bevor sensible Aktionen ausgeführt werden (z.B. E-Mail senden, Bestellung aufgeben) und bevor ein neuer Workflow gespeichert wird.
+
+6. **PowerShell statt Bash:** Da das Zielsystem Windows ist, werden alle Installations- und Setup-Skripte als PowerShell-Skripte (`.ps1`) geschrieben, nicht als Bash-Skripte (`.sh`).
+
+---
+
+## Bekannte Einschränkungen und Trade-offs
+
+| Einschränkung | Grund | Workaround |
+|---|---|---|
+| Antwortzeit 2–10 Sekunden | CPU-Inferenz von 32B-Modell | Kleineres Modell (z.B. Qwen2.5-7B) zum Testen verwenden |
+| Browser Use ist Alpha | Frühe Entwicklungsphase | APIs können sich ändern; Versions-Pinning empfohlen |
+| Workflow Use ist Alpha | Frühe Entwicklungsphase | Kritische Workflows immer manuell prüfen |
+| Kein GPU-Support | Hardware-Einschränkung | RAM-Inferenz ist stabil, aber langsamer |
+| Browser-Session muss gemanagt werden | Playwright auf Windows | Separates Chromium-Profil anlegen |
 
 ---
 
