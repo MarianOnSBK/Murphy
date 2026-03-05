@@ -1,0 +1,32 @@
+{
+  "name": "jarvis",
+  "version": "0.1.0",
+  "description": "Persönlicher KI-Desktop-Assistent mit Ollama und Browser-Automatisierung",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "ollama": "^0.5.9"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.2.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4",
+    "vitest": "^1.6.0"
+  }
+}
