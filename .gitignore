@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+dist-electron/
+*.sqlite
+*.sqlite-journal
+.env
+.env.local
+data/conversations.sqlite
+data/workflows/*.json

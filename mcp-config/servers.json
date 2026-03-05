@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "browser-use": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "C:\\\\Users\\\\DEIN_USERNAME\\\\browser-use",
+      "env": {
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "MODEL": "qwen2.5:32b-instruct",
+        "PYTHONPATH": "C:\\\\Users\\\\DEIN_USERNAME\\\\browser-use"
+      },
+      "enabled": false
+    },
+    "ms365": {
+      "command": "npx",
+      "args": ["-y", "@softeria/ms-365-mcp-server"],
+      "enabled": false
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\\\Users\\\\DEIN_USERNAME\\\\Documents"
+      ],
+      "enabled": false
+    }
+  }
+}
