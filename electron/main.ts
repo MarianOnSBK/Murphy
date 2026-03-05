@@ -44,7 +44,12 @@ async function initOrchestrator(): Promise<void> {
     mainWindow?.webContents.send('chat:token', { token, conversationId })
   }
 
-  orchestrator = new Orchestrator(onStatusUpdate, onStreamToken)
+  // Screenshot-Callback: Sendet Browser-Screenshots (base64-PNG) an den Renderer
+  const onBrowserScreenshot = (screenshotBase64: string, conversationId: string): void => {
+    mainWindow?.webContents.send('browser:screenshot', { screenshotBase64, conversationId })
+  }
+
+  orchestrator = new Orchestrator(onStatusUpdate, onStreamToken, onBrowserScreenshot)
   await orchestrator.initialize()
 }
 

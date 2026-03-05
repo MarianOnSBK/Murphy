@@ -1,0 +1,18 @@
+# Abhängigkeiten für den Browser Use MCP Server
+# Installation: pip install -r mcp_servers/requirements.txt
+
+# MCP-Framework (Model Context Protocol SDK für Python)
+mcp>=1.0.0
+
+# Browser Use — Web-Automatisierung mit LLM-Unterstützung
+browser-use>=0.1.0
+
+# Playwright — Browser-Automatisierungs-Engine (wird von browser-use genutzt)
+# Nach Installation einmalig ausführen: playwright install chromium
+playwright>=1.44.0
+
+# Ollama-Integration für LangChain (wird von browser-use für das LLM benötigt)
+langchain-ollama>=0.1.0
+
+# LangChain-Core (transitive Abhängigkeit, explizit für Versionskompatibilität)
+langchain-core>=0.2.0

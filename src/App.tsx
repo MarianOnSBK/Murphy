@@ -3,6 +3,7 @@ import { ChatWindow } from './components/ChatWindow'
 import { WorkflowViewer } from './components/WorkflowViewer'
 import { StatusBar } from './components/StatusBar'
 import { SettingsPanel } from './components/SettingsPanel'
+import { LiveBrowserView } from './components/LiveBrowserView'
 import type { Conversation, WorkflowMetadata } from './types'
 
 type ActiveView = 'chat' | 'workflows' | 'settings'
@@ -15,11 +16,35 @@ export default function App() {
   const [status, setStatus] = useState<string>('Starte…')
   const [ollamaConnected, setOllamaConnected] = useState<boolean>(false)
 
+  // Live-Browser-Ansicht (Meilenstein 2)
+  const [browserScreenshot, setBrowserScreenshot] = useState<string | undefined>(undefined)
+  const [isBrowserActive, setIsBrowserActive] = useState<boolean>(false)
+
   // Status-Updates vom Hauptprozess empfangen
   useEffect(() => {
-    const cleanup = window.jarvis.onStatusChange(setStatus)
+    const cleanup = window.jarvis.onStatusChange((newStatus) => {
+      setStatus(newStatus)
+      // Browser-Ansicht aktivieren wenn Assistent im Browser arbeitet
+      const browserActive =
+        newStatus.includes('Ruft browser') ||
+        newStatus.includes('Führt aus') ||
+        newStatus.includes('browser_run_task')
+      setIsBrowserActive(browserActive)
+    })
     return cleanup
   }, [])
+
+  // Browser-Screenshots empfangen (Meilenstein 2)
+  useEffect(() => {
+    const cleanup = window.jarvis.onBrowserScreenshot(({ screenshotBase64, conversationId }) => {
+      // Screenshot nur anzeigen wenn es die aktive Konversation ist
+      if (conversationId === activeConversationId) {
+        setBrowserScreenshot(screenshotBase64)
+        setIsBrowserActive(true)
+      }
+    })
+    return cleanup
+  }, [activeConversationId])
 
   // Initialisierung: Ollama-Status prüfen, Konversationen laden
   useEffect(() => {
@@ -33,7 +58,6 @@ export default function App() {
       if (convList.length > 0) {
         setActiveConversationId(convList[0].id)
       } else {
-        // Erste Konversation automatisch anlegen
         const newConv = await window.jarvis.newConversation()
         setConversations([newConv])
         setActiveConversationId(newConv.id)
@@ -48,21 +72,29 @@ export default function App() {
     setConversations((prev) => [newConv, ...prev])
     setActiveConversationId(newConv.id)
     setActiveView('chat')
+    // Browser-Ansicht beim Wechsel zurücksetzen
+    setBrowserScreenshot(undefined)
+    setIsBrowserActive(false)
   }, [])
 
   const handleViewChange = useCallback(async (view: ActiveView) => {
     setActiveView(view)
-    // Workflows bei Wechsel zur Workflow-Ansicht neu laden
     if (view === 'workflows') {
       const wf = await window.jarvis.listWorkflows()
       setWorkflows(wf)
     }
   }, [])
 
-  // Konversationsliste nach gesendeter Nachricht aktualisieren (Titelaktualisierung)
   const handleConversationUpdated = useCallback(async () => {
     const convList = await window.jarvis.listConversations()
     setConversations(convList)
+  }, [])
+
+  const handleConversationSelect = useCallback((id: string) => {
+    setActiveConversationId(id)
+    // Browser-Ansicht beim Konversationswechsel zurücksetzen
+    setBrowserScreenshot(undefined)
+    setIsBrowserActive(false)
   }, [])
 
   return (
@@ -102,7 +134,7 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Konversationsliste (nur im Chat-Modus sichtbar) */}
+        {/* Konversationsliste (nur im Chat-Modus) */}
         {activeView === 'chat' && (
           <div className="conversation-list">
             <button className="new-conv-btn" onClick={handleNewConversation}>
@@ -113,7 +145,7 @@ export default function App() {
                 <button
                   key={conv.id}
                   className={`conv-item ${conv.id === activeConversationId ? 'active' : ''}`}
-                  onClick={() => setActiveConversationId(conv.id)}
+                  onClick={() => handleConversationSelect(conv.id)}
                   title={conv.title}
                 >
                   {conv.title}
@@ -124,19 +156,31 @@ export default function App() {
         )}
       </aside>
 
-      {/* Hauptbereich */}
-      <main className="main-content">
+      {/* Hauptbereich — aufgeteilt wenn Browser-Ansicht aktiv */}
+      <main className={`main-content ${isBrowserActive ? 'with-browser' : ''}`}>
         {activeView === 'chat' && activeConversationId && (
-          <ChatWindow
-            conversationId={activeConversationId}
-            onMessageSent={handleConversationUpdated}
-          />
+          <>
+            <ChatWindow
+              conversationId={activeConversationId}
+              onMessageSent={handleConversationUpdated}
+            />
+
+            {/* Live-Browser-Ansicht: erscheint rechts wenn Assistent im Browser arbeitet */}
+            <LiveBrowserView
+              screenshotBase64={browserScreenshot}
+              isActive={isBrowserActive}
+              onClose={() => {
+                setIsBrowserActive(false)
+                setBrowserScreenshot(undefined)
+              }}
+            />
+          </>
         )}
         {activeView === 'workflows' && <WorkflowViewer workflows={workflows} />}
         {activeView === 'settings' && <SettingsPanel />}
       </main>
 
-      {/* Statusleiste unten */}
+      {/* Statusleiste */}
       <StatusBar status={status} ollamaConnected={ollamaConnected} />
     </div>
   )
