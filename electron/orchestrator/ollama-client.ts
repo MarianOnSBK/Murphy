@@ -1,9 +1,11 @@
 import type { ChatMessage } from '../../src/types'
 
-// Ollama API-interne Typen
-interface OllamaMessage {
-  role: string
+// ─── Ollama API-Typen ─────────────────────────────────────────────────────────
+
+export interface OllamaMessage {
+  role: 'user' | 'assistant' | 'tool' | 'system'
   content: string
+  tool_calls?: OllamaToolCall[]
 }
 
 export interface OllamaTool {
@@ -18,8 +20,20 @@ export interface OllamaTool {
 export interface OllamaToolCall {
   function: {
     name: string
-    arguments: Record<string, unknown>
+    // Ollama liefert arguments manchmal als JSON-String, manchmal als Objekt
+    arguments: Record<string, unknown> | string
   }
+}
+
+export interface OllamaChatResponse {
+  model: string
+  message: {
+    role: string
+    content: string
+    tool_calls?: OllamaToolCall[]
+  }
+  done: boolean
+  done_reason?: string
 }
 
 interface OllamaStreamChunk {
@@ -34,6 +48,8 @@ interface OllamaTagsResponse {
   models: Array<{ name: string }>
 }
 
+// ─── OllamaClient ─────────────────────────────────────────────────────────────
+
 export class OllamaClient {
   private readonly baseUrl: string
   private readonly model: string
@@ -47,45 +63,66 @@ export class OllamaClient {
   }
 
   /**
-   * Sendet eine Chat-Anfrage an Ollama und streamt die Antwort token-weise.
-   * @param history - Bisherige Konversationsnachrichten als Kontext
-   * @param tools - Verfügbare MCP-Tools (leer in Meilenstein 1)
-   * @param onToken - Callback für jeden empfangenen Text-Token
-   * @param onToolCalls - Callback wenn das Modell Tool-Calls zurückgibt
+   * Nicht-streamende Chat-Anfrage — für den Tool-Call-Loop.
+   * Wartet auf die vollständige Antwort bevor sie zurückgegeben wird.
    */
-  async streamChat(
-    history: ChatMessage[],
-    tools: OllamaTool[],
-    onToken: (token: string) => void,
-    onToolCalls: (toolCalls: OllamaToolCall[]) => Promise<void>
-  ): Promise<void> {
-    // Nachrichten-Verlauf ins Ollama-Format konvertieren
-    const messages: OllamaMessage[] = history.map((msg) => ({
-      role: msg.role,
-      content: msg.content
-    }))
-
-    const requestBody: Record<string, unknown> = {
+  async chat(messages: OllamaMessage[], tools: OllamaTool[]): Promise<OllamaChatResponse> {
+    const body: Record<string, unknown> = {
       model: this.model,
       messages,
-      stream: true
+      stream: false
     }
 
-    // Tools nur mitsenden wenn vorhanden (sonst ignoriert Ollama das Feld)
     if (tools.length > 0) {
-      requestBody.tools = tools
+      body.tools = tools
     }
 
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(body)
     })
 
     if (!response.ok) {
       throw new Error(
         `Ollama-Fehler ${response.status}: ${response.statusText}. ` +
-        `Ist Ollama gestartet und das Modell "${this.model}" geladen?`
+          `Ist Ollama gestartet und Modell "${this.model}" geladen?`
+      )
+    }
+
+    return response.json() as Promise<OllamaChatResponse>
+  }
+
+  /**
+   * Streamende Chat-Anfrage — für direkte Textantworten ohne Tool-Calls.
+   * Ruft onToken für jeden Token auf (Echtzeit-Anzeige im Frontend).
+   */
+  async streamChat(
+    messages: OllamaMessage[],
+    tools: OllamaTool[],
+    onToken: (token: string) => void,
+    onToolCalls: (toolCalls: OllamaToolCall[]) => Promise<void>
+  ): Promise<void> {
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      stream: true
+    }
+
+    if (tools.length > 0) {
+      body.tools = tools
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      throw new Error(
+        `Ollama-Fehler ${response.status}: ${response.statusText}. ` +
+          `Ist Ollama gestartet und Modell "${this.model}" geladen?`
       )
     }
 
@@ -93,7 +130,6 @@ export class OllamaClient {
       throw new Error('Ollama hat keinen Response-Body zurückgegeben')
     }
 
-    // Antwort zeilenweise streamen und parsen
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -104,7 +140,6 @@ export class OllamaClient {
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
-      // Letzte (ggf. unvollständige) Zeile im Buffer behalten
       buffer = lines.pop() ?? ''
 
       for (const line of lines) {
@@ -113,20 +148,44 @@ export class OllamaClient {
         try {
           const chunk = JSON.parse(line) as OllamaStreamChunk
 
-          // Text-Token weiterleiten
           if (chunk.message?.content) {
             onToken(chunk.message.content)
           }
 
-          // Tool-Calls verarbeiten (Meilenstein 2)
           if (chunk.message?.tool_calls && chunk.message.tool_calls.length > 0) {
             await onToolCalls(chunk.message.tool_calls)
           }
         } catch {
-          // Ungültige JSON-Zeile überspringen (kann bei Ollama vorkommen)
+          // Ungültige JSON-Zeile überspringen
         }
       }
     }
+  }
+
+  /**
+   * Konvertiert ChatMessage-Verlauf ins Ollama-Format.
+   */
+  static toOllamaMessages(history: ChatMessage[]): OllamaMessage[] {
+    return history.map((msg) => ({
+      role: msg.role,
+      content: msg.content
+    }))
+  }
+
+  /**
+   * Normalisiert OllamaToolCall-Argumente zu einem echten Objekt.
+   * Ollama liefert arguments manchmal als JSON-String.
+   */
+  static normalizeArgs(toolCall: OllamaToolCall): Record<string, unknown> {
+    const raw = toolCall.function.arguments
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw) as Record<string, unknown>
+      } catch {
+        return { _raw: raw }
+      }
+    }
+    return raw
   }
 
   /**
@@ -138,9 +197,7 @@ export class OllamaClient {
         signal: AbortSignal.timeout(5000)
       })
 
-      if (!response.ok) {
-        return { connected: false, models: [] }
-      }
+      if (!response.ok) return { connected: false, models: [] }
 
       const data = (await response.json()) as OllamaTagsResponse
       const models = data.models?.map((m) => m.name) ?? []

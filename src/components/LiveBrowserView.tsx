@@ -3,15 +3,23 @@ interface LiveBrowserViewProps {
   screenshotBase64?: string
   /** Ob der Browser gerade aktiv ist */
   isActive: boolean
-  /** Aktuell besuchte URL */
+  /** Aktuell besuchte URL (optional, Browser Use liefert diese nicht direkt) */
   currentUrl?: string
+  /** Callback zum Schließen der Live-Ansicht */
+  onClose?: () => void
 }
 
-export function LiveBrowserView({ screenshotBase64, isActive, currentUrl }: LiveBrowserViewProps) {
+export function LiveBrowserView({
+  screenshotBase64,
+  isActive,
+  currentUrl,
+  onClose
+}: LiveBrowserViewProps) {
   if (!isActive) return null
 
   return (
     <div className="live-browser-view">
+      {/* Toolbar */}
       <div className="browser-toolbar">
         <span className="live-badge">● LIVE</span>
         {currentUrl && (
@@ -19,8 +27,17 @@ export function LiveBrowserView({ screenshotBase64, isActive, currentUrl }: Live
             {currentUrl}
           </span>
         )}
+        <button
+          className="browser-close-btn"
+          onClick={onClose}
+          title="Live-Ansicht schließen"
+          aria-label="Schließen"
+        >
+          ✕
+        </button>
       </div>
 
+      {/* Screenshot oder Ladeindikator */}
       <div className="browser-content">
         {screenshotBase64 ? (
           <img
@@ -32,6 +49,7 @@ export function LiveBrowserView({ screenshotBase64, isActive, currentUrl }: Live
           <div className="browser-placeholder">
             <span className="spinner" />
             <p>Browser wird gestartet…</p>
+            <p className="hint">Screenshot erscheint nach der ersten Aktion.</p>
           </div>
         )}
       </div>

@@ -592,30 +592,38 @@ button {
 .connection-status.ok         { color: var(--success); }
 .connection-status.error      { color: var(--error); }
 
+/* ─── Hauptbereich mit Browser-Split ────────────────────────────────────────── */
+.main-content.with-browser {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+}
+
 /* ─── Live-Browser-View ─────────────────────────────────────────────────── */
 .live-browser-view {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  border-left: 1px solid var(--border);
   background: var(--bg-card);
+  overflow: hidden;
+  min-height: 0;
 }
 
 .browser-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
+  flex-shrink: 0;
 }
 
 .live-badge {
   color: var(--error);
   font-weight: 700;
   animation: pulse 1.5s infinite;
+  white-space: nowrap;
 }
 
 .current-url {
@@ -623,11 +631,35 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.browser-close-btn {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.browser-close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.browser-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .browser-screenshot {
   width: 100%;
   display: block;
+  object-fit: contain;
 }
 
 .browser-placeholder {
@@ -636,9 +668,12 @@ button {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 40px;
+  padding: 40px 20px;
   color: var(--text-muted);
+  text-align: center;
+  flex: 1;
 }
+.browser-placeholder .hint { font-size: 11px; }
 
 .loading-state {
   padding: 40px 24px;

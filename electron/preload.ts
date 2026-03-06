@@ -48,5 +48,17 @@ contextBridge.exposeInMainWorld('jarvis', {
     const handler = (_event: Electron.IpcRendererEvent, status: string) => callback(status)
     ipcRenderer.on('status:change', handler)
     return () => ipcRenderer.removeListener('status:change', handler)
+  },
+
+  // Event-Listener: Browser-Screenshots empfangen (Live-Ansicht)
+  onBrowserScreenshot: (
+    callback: (data: { screenshotBase64: string; conversationId: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { screenshotBase64: string; conversationId: string }
+    ) => callback(data)
+    ipcRenderer.on('browser:screenshot', handler)
+    return () => ipcRenderer.removeListener('browser:screenshot', handler)
   }
 })

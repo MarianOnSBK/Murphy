@@ -27,6 +27,11 @@ declare global {
         callback: (data: { token: string; conversationId: string }) => void
       ) => () => void
       onStatusChange: (callback: (status: string) => void) => () => void
+
+      // Browser-Screenshots aus dem Live-Browser-View (Meilenstein 2)
+      onBrowserScreenshot: (
+        callback: (data: { screenshotBase64: string; conversationId: string }) => void
+      ) => () => void
     }
   }
 }
