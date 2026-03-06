@@ -8,13 +8,15 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
     "better-sqlite3": "^9.6.0",
     "ollama": "^0.5.9"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
