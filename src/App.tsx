@@ -22,6 +22,7 @@ export default function App() {
 
   // Status-Updates vom Hauptprozess empfangen
   useEffect(() => {
+    if (!window.jarvis) return
     const cleanup = window.jarvis.onStatusChange((newStatus) => {
       setStatus(newStatus)
       // Browser-Ansicht aktivieren wenn Assistent im Browser arbeitet
@@ -36,6 +37,7 @@ export default function App() {
 
   // Browser-Screenshots empfangen (Meilenstein 2)
   useEffect(() => {
+    if (!window.jarvis) return
     const cleanup = window.jarvis.onBrowserScreenshot(({ screenshotBase64, conversationId }) => {
       // Screenshot nur anzeigen wenn es die aktive Konversation ist
       if (conversationId === activeConversationId) {
@@ -48,6 +50,10 @@ export default function App() {
 
   // Initialisierung: Ollama-Status prüfen, Konversationen laden
   useEffect(() => {
+    if (!window.jarvis) {
+      setStatus('Fehler: Preload nicht geladen — App neu starten')
+      return
+    }
     const init = async () => {
       const ollamaStatus = await window.jarvis.getOllamaStatus()
       setOllamaConnected(ollamaStatus.connected)
