@@ -7,7 +7,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: resolve(__dirname, 'electron/main.ts')
+        entry: resolve(__dirname, 'electron/main.ts'),
+        // Output-Dateiname muss "index.js" sein, damit electron-vite und package.json übereinstimmen
+        fileName: () => 'index.js'
       }
     }
   },
@@ -15,7 +17,8 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: resolve(__dirname, 'electron/preload.ts')
+        entry: resolve(__dirname, 'electron/preload.ts'),
+        fileName: () => 'index.js'
       }
     }
   },
